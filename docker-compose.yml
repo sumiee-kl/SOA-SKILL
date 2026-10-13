@@ -1,0 +1,27 @@
+services:
+  account-service:
+    build:
+      context: .
+      args:
+        MODULE: account-service
+    environment:
+      ACCOUNT_SERVICE_PORT: 8081
+      ACCOUNT_SERVICE_BIND: 0.0.0.0   # reachable inside the Docker network only
+    expose:
+      - "8081"                         # NOT published to the host => isolated
+    networks: [internal]
+
+  api-gateway:
+    build:
+      context: .
+      args:
+        MODULE: api-gateway
+    environment:
+      ACCOUNT_SERVICE_URL: http://account-service:8081
+    ports:
+      - "8080:8080"                    # the only port exposed to the outside
+    depends_on: [account-service]
+    networks: [internal]
+
+networks:
+  internal:

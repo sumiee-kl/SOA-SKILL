@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+
+        # ------------------------------------------------------------------
+        # ROUTE 1 — RewritePath (primary)
+        #   Client  : GET http://localhost:8080/accounts/ACC1001
+        #   Backend : GET http://localhost:8081/api/v1/internal/accounts/ACC1001
+        # ------------------------------------------------------------------
+        - id: accounts-rewrite
+          uri: ${ACCOUNT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/accounts,/accounts/**
+          filters:
+            # (?<segment>/?.*) captures everything after /accounts (including empty)
+            - RewritePath=/accounts(?<segment>/?.*), /api/v1/internal/accounts$\{segment}
+            - AddRequestHeader=X-Gateway-Route, accounts-rewrite
+            - AddResponseHeader=X-Gateway, banking-api-gateway
+
+        # ------------------------------------------------------------------
+        # ROUTE 2 — StripPrefix
+        #   Client  : GET http://localhost:8080/account-service/api/v1/internal/accounts
+        #   Backend : GET http://localhost:8081/api/v1/internal/accounts
+        #   StripPrefix=1 removes the first path segment ("/account-service").
+        # ------------------------------------------------------------------
+        - id: accounts-strip-prefix
+          uri: ${ACCOUNT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/account-service/api/v1/internal/accounts,/account-service/api/v1/internal/accounts/**
+          filters:
+            - StripPrefix=1
+            - AddRequestHeader=X-Gateway-Route, accounts-strip-prefix
+            - AddResponseHeader=X-Gateway, banking-api-gateway
+
+        # ------------------------------------------------------------------
+        # ROUTE 3 — Guard: never expose internal paths directly at the edge.
+        #   GET http://localhost:8080/api/v1/internal/accounts  ->  403 Forbidden
+        # ------------------------------------------------------------------
+        - id: block-direct-internal
+          uri: no://op
+          predicates:
+            - Path=/api/v1/internal/**
+          filters:
+            - SetStatus=403
+
+server:
+  port: ${GATEWAY_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    com.bank.gateway: INFO

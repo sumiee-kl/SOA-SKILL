@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: account-service
+
+server:
+  # Isolated port: only the gateway should talk to this service.
+  port: ${ACCOUNT_SERVICE_PORT:8081}
+  # Bind to loopback so the service is NOT reachable from other machines.
+  # (In Docker this is set to 0.0.0.0 but the port is never published to the host.)
+  address: ${ACCOUNT_SERVICE_BIND:127.0.0.1}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.bank.account: INFO
